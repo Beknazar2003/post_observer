@@ -4,20 +4,20 @@ const regex = new RegExp(/[ !+/*-]/)//regular expression for validation table na
 
 //function for create table in db
 const create = async (tableName, options) => {
-    const sql = []
-    for (let key in options) {
-      sql.push(`"${key}" ${options[key].split(', ').map(name => name.toUpperCase()).join(' ')}`)
-    }
+  const sql = []
+  for (let key in options) {
+    sql.push(`"${key}" ${options[key].split(', ').map(name => name.toUpperCase()).join(' ')}`)
+  }
   await db.query(`CREATE TABLE IF NOT EXISTS "${tableName}" (${sql})`)
 }
 //function for add post to table
 const add = async (tableName, options) => {
-    const sql = [[],[],[]]
-    for (let key in options) {
-      sql[0].push(`"${key}"`)
-      sql[1].push('$' + sql[0].length)
-      sql[2].push(options[key])
-    }
+  const sql = [[], [], []]
+  for (let key in options) {
+    sql[0].push(`"${key}"`)
+    sql[1].push('$' + sql[0].length)
+    sql[2].push(options[key])
+  }
   await db.query(`INSERT INTO "${tableName}" (${sql[0]}) VALUES (${sql[1]})`, sql[2])
 }
 //function for delete post from table
@@ -27,36 +27,40 @@ const deletePost = async (tableName, id) => {
 
 //class for control post table
 class postController {
-  async createPost(req, res, next){
-    try{
-      const {name} = req.params
-      const body = req.body
-      if(name !== name.toLowerCase() || regex.test(name)) {
-        return res.json('Название таблицы должно быть в нижнем регистре и не должно содержать символы пробела и * - .')
-      }
-      if(body['id'] === undefined){
-        body.id = 'serial, primary key'
-      }
-      await create(name, body)
-      res.json('Ваша таблица успесншно создана.')
-    } catch (e){
-      res.json('Что-то пошло не так. Перепроверьте данные.')
+  async createPost(req, res, next) {
+    // try {
+    const {name} = req.params
+    const body = req.body
+    if (name !== name.toLowerCase() || regex.test(name)) {
+      return res.json('Название таблицы должно быть в нижнем регистре и не должно содержать символы пробела и * - .')
     }
+    const {rows} = await db.query(`SELECT * FROM information_schema.tables WHERE table_catalog = 'post_observer' AND table_name = '${name}'`)
+    if (rows.length !== 0) return res.json({err: 'Таблица с таким именем уже есть в базе.'})
+    if (body['id'] === undefined) {
+      body.id = 'serial, primary key'
+    }
+    await create(name, body)
+    res.json('Ваша таблица успесншно создана.')
+    // } catch (e) {
+    //   res.json('Что-то пошло не так. Перепроверьте данные.')
+    // }
   }
-  async addPost(req, res, next){
-    try{
+
+  async addPost(req, res, next) {
+    try {
       const {name} = req.params
       const body = req.body
-      if(name !== name.toLowerCase()) {
+      if (name !== name.toLowerCase()) {
         return res.json('Название таблицы должно быть в нижнем регистре.')
       }
       await add(name, body)
       res.json('Ваш пост успесншно создан.')
-    } catch (e){
+    } catch (e) {
       res.json('Что-то пошло не так. Перепроверьте данные.')
     }
   }
-  async getPosts(req, res, next){
+
+  async getPosts(req, res, next) {
     try {
       const {name} = req.params
       const {limit, page} = req.query
@@ -67,13 +71,14 @@ class postController {
     }
 
   }
-  async deletePost(req, res, next){
-    try{
+
+  async deletePost(req, res, next) {
+    try {
       const {name} = req.params
       const {id} = req.query
       deletePost(name, id)
       res.json('Пост успешно удалён')
-    }catch (e) {
+    } catch (e) {
       res.json('Что то пошло не так')
     }
   }
